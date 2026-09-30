@@ -14,16 +14,27 @@ static void MessageHandler(SKSE::MessagingInterface::Message* a_message)
 
 extern "C"
 {
-	DLLEXPORT SKSE::PluginVersionData SKSEPlugin_Version = []() {
-		SKSE::PluginVersionData v{};
-		v.PluginVersion(REL::Version{ Version::MAJOR, Version::MINOR, Version::PATCH, 0 });
-		v.PluginName(Version::NAME);
-		v.AuthorName(Version::AUTHOR);
-		v.UsesAddressLibrary();
-		v.UsesUpdatedStructs();
-		v.CompatibleVersions({ SKSE::RUNTIME_SSE_1_7_104 });
-		return v;
-	}();
+	DLLEXPORT bool SKSEPlugin_Query(const SKSE::QueryInterface* a_skse, SKSE::PluginInfo* a_info)
+	{
+		a_info->infoVersion = SKSE::PluginInfo::kVersion;
+		a_info->name = Version::NAME.data();
+		a_info->version = REL::Version{ Version::MAJOR, Version::MINOR, Version::PATCH, 0 }.pack();
+
+		if (a_skse->IsEditor())
+		{
+			logger::critical("Loaded in editor, marking as incompatible"sv);
+			return false;
+		}
+
+		const auto ver = a_skse->RuntimeVersion();
+		if (ver < SKSE::RUNTIME_SSE_1_5_39)
+		{
+			logger::critical("Unsupported runtime version {}", ver.string());
+			return false;
+		}
+
+		return true;
+	}
 
 	DLLEXPORT bool SKSEPlugin_Load(SKSE::LoadInterface* a_skse)
 	{

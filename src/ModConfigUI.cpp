@@ -58,12 +58,14 @@ namespace DME
 		a_renderer.BeginDisabled(settings->freeLook);
 		if (a_renderer.Checkbox(Translate("$DME_UnlockCamera"), unlockCamera, UNLOCK_CAMERA_DEFAULT_VALUE, Translate("$DME_UnlockCamera_Tooltip")))
 		{
+			UpdateUnlockCamPatch();
 			SaveSettings();
 		}
 		a_renderer.EndDisabled();
 
 		if (a_renderer.Checkbox(Translate("$DME_FreeLook"), &settings->freeLook, FREE_LOOK_DEFAULT_VALUE, Translate("$DME_FreeLook_Tooltip")))
 		{
+			UpdateUnlockCamPatch();
 			SaveSettings();
 		}
 
@@ -162,6 +164,12 @@ namespace DME
 		a_renderer.EndTable();
 	}
 
+	void OnRestoreDefaults()
+	{
+		RestoreDefaults();
+		UpdateUnlockCamPatch();
+	}
+
 	void InstallModConfigUI()
 	{
 		static constexpr ModConfigUI::ModInfo MOD_INFO{
@@ -179,6 +187,6 @@ namespace DME
 			{ "$DME_Page_Controls", &DrawControlsPage }
 		};
 
-		ModConfigUI::Install(MOD_INFO, PAGES, &RestoreDefaults);
+		ModConfigUI::Install(MOD_INFO, PAGES, &OnRestoreDefaults);
 	}
 }

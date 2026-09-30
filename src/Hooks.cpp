@@ -4,6 +4,35 @@
 
 namespace DME
 {
+	struct BytePatch
+	{
+		std::uintptr_t address = 0;
+		std::uint8_t original[6]{};
+		std::uint8_t patched[6]{};
+	};
+
+	static BytePatch s_unlockCamPatch;
+
+	static void InitPatch(BytePatch& a_patch, std::uintptr_t a_address, const std::uint8_t (&a_bytes)[6])
+	{
+		a_patch.address = a_address;
+		std::memcpy(a_patch.original, reinterpret_cast<const void*>(a_address), sizeof(a_patch.original));
+		std::memcpy(a_patch.patched, a_bytes, sizeof(a_patch.patched));
+	}
+
+	static void WriteUnlockCamPatch()
+	{
+		Settings* settings = Settings::GetSingleton();
+		bool enable = settings->unlockCamera || settings->freeLook;
+		REL::WriteSafe(reinterpret_cast<void*>(s_unlockCamPatch.address), enable ? s_unlockCamPatch.patched : s_unlockCamPatch.original, sizeof(s_unlockCamPatch.patched));
+	}
+
+	void UpdateUnlockCamPatch()
+	{
+		// Run on the main thread, so the game isn't executing the bytes while they're being rewritten
+		SKSE::GetTaskInterface()->AddTask([]() { WriteUnlockCamPatch(); });
+	}
+
 	using GetDialogueLookAngle_t = float (*)(RE::PlayerCharacter*);
 	static REL::Relocation<GetDialogueLookAngle_t> _GetDialogueLookAngle;
 
@@ -17,18 +46,6 @@ namespace DME
 	static REL::Relocation<StartDialogue_t> _StartDialogue;
 
 	static bool s_isNPCInitiatedDialogue = false;
-
-	static float GetDialogueLookAngle_Hook(RE::PlayerCharacter* a_player)
-	{
-		Settings* settings = Settings::GetSingleton();
-
-		if (settings->unlockCamera || settings->freeLook)
-		{
-			return std::numeric_limits<float>::max();
-		}
-
-		return _GetDialogueLookAngle(a_player);
-	}
 
 	static bool Actor_SetDialogueWithPlayer_ForceGreet_Hook(RE::MenuTopicManager* a_topicManager, RE::TESObjectREFR* a_speaker, bool a_unk1, RE::TESTopicInfo* a_topicInfo, bool a_unk2)
 	{
@@ -94,7 +111,7 @@ namespace DME
 
 			// SkyrimSouls compatibility
 			using func_t = bool (*)();
-			REL::Relocation<func_t> func(REL::ID{ 56833 });
+			REL::Relocation<func_t> func(REL::ID{ 56476 });
 			bool isInMenuMode = func();
 
 			bool movementControlsEnabled;
@@ -275,12 +292,14 @@ namespace DME
 
 	void InstallHooks()
 	{
+		InitPatch(s_unlockCamPatch, REL::ID{ 41292 }.address() + 0x25, { 0xE9, 0xBE, 0x00, 0x00, 0x00, 0x90 });  //jmp + nop
+		WriteUnlockCamPatch();
+
 		REL::Trampoline& trampoline = REL::GetTrampoline();
 
-		_GetDialogueLookAngle = trampoline.write_call<5>(REL::ID{ 42338 }.address() + 0x450, &GetDialogueLookAngle_Hook);
-		_StartDialogue = trampoline.write_call<5>(REL::ID{ 37200 }.address() + 0x23D, &Actor_SetDialogueWithPlayer_ForceGreet_Hook);
-		_InitDialogueLookAt = trampoline.write_call<5>(REL::ID{ 35282 }.address() + 0x6B4, &InitDialogueLookAt_Hook);
-		_IsGamepadEnabled = trampoline.write_call<5>(REL::ID{ 42339 }.address() + 0x46, &PlayerControls_MenuOpenCloseEvent_Handle_Hook);
+		_StartDialogue = trampoline.write_call<5>(REL::ID{ 36220 }.address() + 0x229, &Actor_SetDialogueWithPlayer_ForceGreet_Hook);
+		_InitDialogueLookAt = trampoline.write_call<5>(REL::ID{ 34455 }.address() + 0x5EA, &InitDialogueLookAt_Hook);
+		_IsGamepadEnabled = trampoline.write_call<5>(REL::ID{ 41260 }.address() + 0x46, &PlayerControls_MenuOpenCloseEvent_Handle_Hook);
 
 		REL::Relocation<std::uintptr_t> vTable_mc(RE::VTABLE_MenuControls[0]);
 		MenuControlsEx::_ProcessEvent = vTable_mc.write_vfunc(0x1, &MenuControlsEx::ProcessEvent_Hook);
