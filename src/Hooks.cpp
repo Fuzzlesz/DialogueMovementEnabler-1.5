@@ -297,7 +297,7 @@ namespace DME
 
 		REL::Trampoline& trampoline = REL::GetTrampoline();
 
-		_StartDialogue = trampoline.write_call<5>(REL::ID{ 36220 }.address() + 0x229, &Actor_SetDialogueWithPlayer_ForceGreet_Hook);
+		_StartDialogue = trampoline.write_call<5>(REL::ID{ 36220 }.address() + 0x230, &Actor_SetDialogueWithPlayer_ForceGreet_Hook);
 		_InitDialogueLookAt = trampoline.write_call<5>(REL::ID{ 34455 }.address() + 0x5EA, &InitDialogueLookAt_Hook);
 		_IsGamepadEnabled = trampoline.write_call<5>(REL::ID{ 41260 }.address() + 0x46, &PlayerControls_MenuOpenCloseEvent_Handle_Hook);
 
